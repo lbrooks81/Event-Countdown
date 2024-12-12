@@ -1,9 +1,35 @@
 <!-- Works like the template property, it's where the HTML will go-->
 <template>
+  <button @click="darkModeSet = !darkModeSet">
+    Toggle Dark Mode
+  </button>
+
   <div id="events">
+    <teleport to="#modal">
+      <!--
+           v-if is like display: none, v-show is like visibility: hidden.
+           v-if doesn't reserve room on the DOM for the element, while v-show does
+           when v-if is false, it is unmounted from the application
+       -->
+      <AddUpdateForm v-if="showForm" @close-form="showForm = !showForm"/>
+    </teleport>
+
+    <div class="options">
+      <button @click="showPastEvents = !showPastEvents">
+        Show Past Events
+      </button>
+      <button class="add-new" @click="showForm = !showForm">
+        &#43;
+      </button>
+    </div>
+
     <ul>
-      <li v-for="event in events" :key="event.id">
-        <Event :event="event" :daysLeft="daysLeft(event)"/>
+      <li v-for="event in orderEvents" :key="event.id">
+        <Event
+            :event="event"
+            :daysLeft="daysLeft(event)"
+            :showPastEvents="showPastEvents"
+        />
       </li>
     </ul>
   </div>
@@ -14,23 +40,48 @@
 
 import {defineComponent} from "vue";
 import Event from "@/components/Event.vue";
+import AddUpdateForm from "@/components/AddUpdateForm.vue";
 
 export default defineComponent({
-  components: {Event},
+  components: {AddUpdateForm, Event},
   data(){
     return{
-      events: eventData
+      events: eventData,
+      darkModeSet: false,
+      showPastEvents: false,
+      showForm: false
     }
   },
   methods:{
     daysLeft(event){
       const eventDate = Date.parse(event.date);
-      const millisecsUntilEvent = eventDate - Date.now();
+
+      //* This ensures that if the event was set to today, any second after midnight won't be counted as yesterday
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const millisecsUntilEvent = eventDate - today;
+
       const daysRemaining = millisecsUntilEvent / (1000 * 60 * 60 * 24);
       return Math.ceil((daysRemaining));
     }
+  },
+  //* Fires when changes on properties with the same name are made
+  //* Watchers won't fire by default on changes for values in reference types
+  watch:{
+    //* First param always has the new value, second param always has the old value
+    darkModeSet(newVal, oldVal) {
+      console.log(newVal, oldVal);
+    }
+  },
+  computed:{
+    orderEvents(){
+      const eventsToSort = this.events;
+      //* We are passing in a comparison function of two dates
+      //* This returns a negative number if the first date is earlier, 0 if they're the same, and positive if it's later
+      return eventsToSort.sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+    }
   }
-})
+});
 
 const eventData = [
   {
